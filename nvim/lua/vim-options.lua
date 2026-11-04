@@ -1,18 +1,21 @@
--- SOME GENERAL CONFIGURATIONS --
+-- Editor-wide defaults, loaded before plugin configuration.
+-- vim.cmd executes Vim commands; vim.opt provides a Lua interface to options.
 
--- Tabs to spaces
+-- Insert spaces instead of literal tab characters.
 vim.cmd("set expandtab")
--- How many spaces for a tab
+-- Display an existing tab as two columns. softtabstop controls the number of
+-- columns used by Tab/Backspace while editing; shiftwidth controls indentation.
 vim.cmd("set tabstop=2")
 vim.cmd("set softtabstop=2")
 vim.cmd("set shiftwidth=2")
 
--- sets the global leader key to the space character. 
--- The leader key is used as a prefix for many custom keyboard shortcuts in Neovim.
+-- <leader> expands to Space in mappings: <leader>ff means Space, f, f.
+-- This is a prefix, not a key that must be held down.
 vim.g.mapleader = " "
--- sets the local leader key to the backslash character. 
--- The local leader key is similar to the main leader but is typically used for filetype specific commands.
+-- <localleader> is a separate prefix, conventionally used for filetype mappings.
 vim.g.maplocalleader = "\\"
 
+-- Together these show the absolute number on the cursor line and relative
+-- distances elsewhere, making motions such as 5j (five lines down) easier.
 vim.opt.number = true
 vim.opt.relativenumber = true

@@ -1,10 +1,7 @@
--- INSTALL PACKAGE MANAGER --
-
--- Installs and runs packages for neovim. There are two major package managers for neovim, packer.nvim and lazy.nvim
---
--- Installing lazy.nvim (see Single File Setup at http://www.lazyvim.org/installation):
---
--- Bootstrap lazy.nvim
+-- Entry point: bootstrap the plugin manager, load editor settings, then load plugins.
+-- lazy.nvim manages plugins; it is not the LazyVim configuration distribution.
+-- stdpath("data") is Neovim's user data directory, separate from this configuration.
+-- Clone lazy.nvim's stable branch only when it is not installed yet.
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
@@ -17,6 +14,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 	  lazypath 
     })
 
+  -- Stop on installation failure rather than continuing without a plugin manager.
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
       { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
@@ -28,28 +26,27 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
   end
 end
 
+-- Add lazy.nvim to runtimepath so require("lazy") can find its Lua module.
 vim.opt.rtp:prepend(lazypath)
 
--- Outsource the general vim options to ~/.config/nvim/lua/vim-options.lua
--- IMPORTANT: Leader key has to be set before configuring lazy
+-- require() resolves these modules from lua/ inside the configuration directory.
+-- Set leader keys before loading plugins so their mappings use the right prefix.
 require("vim-options")
 require("terminal-options")
 
--- Setup lazy.nvim
---     The string "plugins" will automatically load the plugins from the ~/.config//nvim/lua/plugins directory
---     See https://lazy.folke.io/usage/structuring for more information regarding the structuring of plugins
---
---     If we set the config = function() parameter in the <plugin>.lua file, it will automatically call the
---     require("<pluginname>").setup() function!
+-- Import plugin specifications from lua/plugins.lua and lua/plugins/*.lua.
+-- Each specification names a repository and optional dependencies/settings.
+-- A config function runs when the plugin loads; it must call setup() itself.
+-- Using opts = {...} instead lets lazy.nvim call the plugin's setup() automatically.
+-- No lazy-loading defaults are overridden here, so plugins load at startup unless
+-- their specifications explicitly defer loading. See https://lazy.folke.io/usage/structuring.
 require("lazy").setup("plugins")
 
--- Startup commands
+-- VimEnter runs after startup. Always open the file explorer on the left and
+-- reveal the current file, including when Neovim was started with a file argument.
+-- This also moves focus away from the Alpha dashboard on an otherwise empty start.
 vim.api.nvim_create_autocmd("VimEnter", {
   callback = function()
-    -- Your commands here:
     vim.cmd('Neotree filesystem reveal left')
-    -- You can also call Lua functions
-    --require('telescope.builtin').find_files()
   end,
 })
-
