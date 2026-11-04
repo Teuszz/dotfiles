@@ -1,4 +1,10 @@
 -- Entry point: bootstrap the plugin manager, load editor settings, then load plugins.
+-- The current Treesitter plugin requires Neovim 0.12+; fail before installing
+-- plugins when an older editor is used instead of producing partial setup errors.
+if vim.fn.has("nvim-0.12") == 0 then
+  error("This configuration requires Neovim 0.12 or newer.")
+end
+
 -- lazy.nvim manages plugins; it is not the LazyVim configuration distribution.
 -- stdpath("data") is Neovim's user data directory, separate from this configuration.
 -- Clone lazy.nvim's stable branch only when it is not installed yet.
