@@ -30,7 +30,7 @@ return {
       [[                                                                       ]],
     }
 
-    -- Register the dashboard. init.lua also opens Neo-tree on VimEnter.
+    -- Empty starts keep the dashboard; startup.lua opens Neo-tree only for directories.
     alpha.setup(dashboard.opts)
   end,
 }

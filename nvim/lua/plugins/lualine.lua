@@ -6,9 +6,8 @@ return {
   config = function()
     require('lualine').setup({
       options = {
-        -- Lualine ships its own Dracula palette; it does not change the editor
-        -- color scheme. This differs from Catppuccin in this config.
-        theme = 'dracula' 
+        -- Match the editor's Catppuccin scheme instead of using a separate palette.
+        theme = 'catppuccin'
       }
     })
   end

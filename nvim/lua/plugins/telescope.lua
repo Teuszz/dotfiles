@@ -3,19 +3,27 @@ return {
   {
     -- Pinned to this older release; updating plugins alone will not move this tag.
     'nvim-telescope/telescope.nvim', tag = '0.1.8',
-    dependencies = { 'nvim-lua/plenary.nvim' },
-    config = function()
-      local builtin = require('telescope.builtin')
-      -- Space+ff searches file names; Space+fg searches file contents as you type.
+    cmd = "Telescope",
+    keys = {
+      { "<leader>ff", function() require("telescope.builtin").find_files() end, desc = "Telescope find files" },
       -- live_grep requires the external ripgrep executable ("rg") on PATH.
-      vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Telescope find files' })
-      vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Telescope live grep' })
-    end
-  },
-  {
-    -- Replace vim.ui.select() prompts with a Telescope picker; this does not
-    -- replace every Neovim input prompt or the completion menu.
-    "nvim-telescope/telescope-ui-select.nvim",
+      { "<leader>fg", function() require("telescope.builtin").live_grep() end, desc = "Telescope live grep" },
+    },
+    dependencies = { 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope-ui-select.nvim' },
+    init = function()
+      -- Preserve Telescope selection prompts without loading Telescope at startup.
+      -- The first vim.ui.select() loads the plugin and its extension, which replaces
+      -- this wrapper before the original selection request is forwarded.
+      local function select(items, options, callback)
+        require("telescope")
+        -- A failed plugin setup must report an error rather than recurse forever.
+        if vim.ui.select == select then
+          error("Telescope selection UI failed to initialize. See :messages for details.")
+        end
+        vim.ui.select(items, options, callback)
+      end
+      vim.ui.select = select
+    end,
     config = function()
       require("telescope").setup {
         extensions = {
@@ -26,7 +34,7 @@ return {
           }
         }
       }
-      -- Installing the extension is not enough; loading it activates the UI hook.
+      -- Activate the UI hook after setup, including when loaded by vim.ui.select().
       require("telescope").load_extension("ui-select")
     end
   }

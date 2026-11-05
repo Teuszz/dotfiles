@@ -44,15 +44,12 @@ require("terminal-options")
 -- Each specification names a repository and optional dependencies/settings.
 -- A config function runs when the plugin loads; it must call setup() itself.
 -- Using opts = {...} instead lets lazy.nvim call the plugin's setup() automatically.
--- No lazy-loading defaults are overridden here, so plugins load at startup unless
--- their specifications explicitly defer loading. See https://lazy.folke.io/usage/structuring.
+-- UI essentials and Treesitter load at startup; expensive tools declare their own
+-- event/command/key triggers. Keep global defaults unchanged to avoid hidden dependencies.
+-- lazy.nvim reads lazy-lock.json from the configuration directory; :Lazy restore
+-- restores its recorded commits, while :Lazy update deliberately rewrites them.
 require("lazy").setup("plugins")
 
--- VimEnter runs after startup. Always open the file explorer on the left and
--- reveal the current file, including when Neovim was started with a file argument.
--- This also moves focus away from the Alpha dashboard on an otherwise empty start.
-vim.api.nvim_create_autocmd("VimEnter", {
-  callback = function()
-    vim.cmd('Neotree filesystem reveal left')
-  end,
-})
+-- A plain start keeps Alpha; file arguments keep focus on the file. Only an
+-- explicit directory argument opens Neo-tree, without changing the working directory.
+require("startup").setup()

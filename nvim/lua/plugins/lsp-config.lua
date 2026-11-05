@@ -17,6 +17,7 @@ return {
       "hrsh7th/cmp-nvim-lsp",
     },
     config = function()
+      require("lsp-options").setup()
       local servers = { "lua_ls", "clangd", "rust_analyzer" }
       -- Advertise completion features understood by nvim-cmp, including snippets.
       local capabilities = require('cmp_nvim_lsp').default_capabilities()
@@ -36,15 +37,8 @@ return {
         automatic_enable = servers,
       })
 
-      -- Normal-mode navigation: K = documentation, gd = definition,
-      -- gD = declaration, gi = implementation. Space+ca requests code actions
-      -- in normal or visual mode. See :help vim.lsp.buf.
-      -- These mappings are global, even in buffers without an attached server.
-      vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
-      vim.keymap.set('n', 'gd', vim.lsp.buf.definition, {})
-      vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, {})
-      vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, {})
-      vim.keymap.set({ 'n', 'v'}, '<leader>ca', vim.lsp.buf.code_action, {})
+      -- Buffer-local navigation, code actions and explicit formatting are installed
+      -- by lsp-options.lua only when a language server attaches.
     end
   }
 }
