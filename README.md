@@ -103,7 +103,9 @@ rust-analyzer delegates Rust formatting to `rustfmt` (install via
 | `Space+$` | Jump to the last buffer |
 | `Alt+t` | Show/hide the persistent terminal |
 
-The editor and status line both use Catppuccin.
+The editor and status line both use Catppuccin. Lualine explicitly depends on
+Catppuccin and uses its `catppuccin-nvim` status-line theme, which follows the
+active flavour. This theme name differs from the editor's `catppuccin` alias.
 
 ### Completion and snippets
 

@@ -108,10 +108,18 @@ local function loading()
   assert(explorer.opts.filesystem.bind_to_cwd == false)
   local treesitter = dofile(config .. "/lua/plugins/treesitter.lua")
   assert(treesitter.lazy == false)
+  local statusline = dofile(config .. "/lua/plugins/lualine.lua")
+  assert(statusline.dependencies[2][1] == "catppuccin/nvim")
+  assert(statusline.dependencies[2].name == "catppuccin")
+  local previous_lualine, statusline_options = package.loaded.lualine, nil
+  package.loaded.lualine = { setup = function(options) statusline_options = options end }
+  statusline.config()
+  assert(statusline_options.options.theme == "catppuccin-nvim")
+  package.loaded.lualine = previous_lualine
   local lock = vim.json.decode(table.concat(vim.fn.readfile(config .. "/lazy-lock.json"), "\n"))
   assert(lock["cmp-buffer"] and lock["telescope-ui-select.nvim"] and lock["lazy.nvim"])
   for _, revision in pairs(lock) do assert(#revision.commit == 40 and revision.commit:match("^%x+$")) end
-  print("PASS: lazy triggers, startup Treesitter and complete commit-shaped lockfile entries")
+  print("PASS: lazy triggers, startup Treesitter, Catppuccin status-line theme and lockfile entries")
 end
 
 local function copilot()
