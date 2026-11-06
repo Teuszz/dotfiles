@@ -90,6 +90,18 @@ end
 local function loading()
   local completion = dofile(config .. "/lua/plugins/completions.lua")
   assert(completion[2].event == "InsertEnter")
+  local preview = dofile(config .. "/lua/plugins/markdown-preview.lua")
+  assert(vim.deep_equal(preview.ft, { "markdown" }))
+  assert(vim.deep_equal(preview.cmd, { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" }))
+  assert(preview.build == "cd app && npm install --omit=dev --no-audit --no-fund")
+  local preview_globals = {}
+  for _, name in ipairs({ "mkdp_filetypes", "mkdp_auto_start", "mkdp_open_to_the_world", "mkdp_echo_preview_url" }) do
+    preview_globals[name] = { value = vim.g[name] }
+  end
+  preview.init()
+  assert(vim.deep_equal(vim.g.mkdp_filetypes, { "markdown" }))
+  assert(vim.g.mkdp_auto_start == 0 and vim.g.mkdp_open_to_the_world == 0 and vim.g.mkdp_echo_preview_url == 1)
+  for name, saved in pairs(preview_globals) do vim.g[name] = saved.value end
   local debugging = dofile(config .. "/lua/plugins/debugging.lua")
   assert(#debugging.keys == 5)
   for _, key in ipairs(debugging.keys) do assert(key.desc and type(key[2]) == "function") end
@@ -118,6 +130,7 @@ local function loading()
   package.loaded.lualine = previous_lualine
   local lock = vim.json.decode(table.concat(vim.fn.readfile(config .. "/lazy-lock.json"), "\n"))
   assert(lock["cmp-buffer"] and lock["telescope-ui-select.nvim"] and lock["lazy.nvim"])
+  assert(lock["markdown-preview.nvim"] and lock["markdown-preview.nvim"].branch == "master")
   for _, revision in pairs(lock) do assert(#revision.commit == 40 and revision.commit:match("^%x+$")) end
   print("PASS: lazy triggers, startup Treesitter, Catppuccin status-line theme and lockfile entries")
 end
@@ -406,6 +419,10 @@ local ok, err = xpcall(function()
     buffer_closing()
     return
   end
+  if arg[1] == "--loading" then
+    loading()
+    return
+  end
   startup()
   lsp()
   loading()
@@ -416,4 +433,4 @@ vim.notify, vim.ui.select = original_notify, original_select
 vim.fn.stdpath = original_stdpath
 vim.fn.delete(temporary, "rf")
 assert(ok, err)
-print(arg[1] == "--buffer-closing" and "PASS: focused buffer-closing regressions" or "PASS: all usability regressions")
+print(arg[1] and "PASS: focused usability regressions" or "PASS: all usability regressions")

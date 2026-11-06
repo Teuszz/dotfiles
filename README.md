@@ -16,6 +16,7 @@ plugin shortcuts.
 - Git for lazy.nvim and plugin installation.
 - `ripgrep` (`rg`) for Telescope text searches; `fd` is an optional faster file finder.
 - A Nerd Font configured in the terminal for file icons and dashboard artwork.
+- Node.js and npm for installing/running the Markdown browser preview, plus a browser.
 - A C compiler, `tar`, `curl`, and `tree-sitter-cli` 0.26.1 or newer on `PATH`
   for Treesitter parser installation. Install the CLI through your system
   package manager or Cargo, not npm, as required by nvim-treesitter.
@@ -128,6 +129,26 @@ as a fallback (`cmp-buffer`). Run `:Lazy install` to install missing dependencie
 Use `Ctrl+l` / `Ctrl+h` to move to the next / previous snippet placeholder.
 Outside an active snippet these keys keep their normal behavior. Enter still
 accepts the selected suggestion, or the first suggestion if none is selected.
+
+### Markdown browser preview
+
+[markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim) loads
+for Markdown files or its commands. Run `:Lazy restore` after updating this
+configuration, then restart Neovim. The build hook installs the preview's Node.js
+dependencies with npm; Node.js must also remain available when previewing.
+If the build fails, inspect the error in `:Lazy`, fix the reported prerequisite
+and run `:Lazy build markdown-preview.nvim`.
+
+In a Markdown buffer, use `:MarkdownPreview` to open the live browser preview,
+`:MarkdownPreviewStop` to stop it, or `:MarkdownPreviewToggle` to toggle it.
+Scrolling is synchronized; the preview closes by default when leaving its buffer.
+No browser or preview server starts automatically when opening a Markdown file.
+
+The server listens on localhost only, and its URL is printed in Neovim.
+For SSH sessions, forward the port shown in that URL, for example
+`ssh -L 8080:127.0.0.1:8080 user@host` (replace both ports with the preview port),
+then open the URL in your local browser. The default browser launcher runs on
+the Neovim host; do not expose the server to the network to work around this.
 
 ### GitHub Copilot
 

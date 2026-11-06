@@ -185,6 +185,22 @@ Außerhalb eines aktiven Snippets behalten `Ctrl+l` / `Ctrl+h` ihre normale
 Wirkung. `Tab` ist hier weder ein eigenes Snippet-Sprungkürzel noch eine
 Copilot-Annahmetaste.
 
+### Markdown-Vorschau im Browser
+
+| Befehl | Wirkung |
+| --- | --- |
+| `:MarkdownPreview` | Live-Markdown-Vorschau im Browser öffnen |
+| `:MarkdownPreviewStop` | Vorschau stoppen |
+| `:MarkdownPreviewToggle` | Vorschau ein-/ausschalten |
+
+Die Befehle in einem Markdown-Buffer verwenden. Benötigt Node.js, npm zur
+Installation und einen Browser. Die Vorschau startet nicht automatisch;
+Scrollen wird synchronisiert. Beim Verlassen des Buffers schließt die Vorschau
+standardmäßig. Der Server lauscht nur auf localhost und zeigt seine URL an;
+bei SSH-Sitzungen kann Portweiterleitung nötig sein.
+Einrichtung und Fehlerbehebung stehen in der
+[README](../README.md#markdown-browser-preview).
+
 ### GitHub Copilot
 
 Copilot ist nur aktiv, wenn die lokale, Git-ignorierte

@@ -185,6 +185,20 @@ Outside an active snippet, `Ctrl+l` / `Ctrl+h` keep their normal behavior.
 `Tab` is neither a custom snippet-jump shortcut nor a Copilot acceptance key
 in this configuration.
 
+### Markdown Browser Preview
+
+| Command | Action |
+| --- | --- |
+| `:MarkdownPreview` | Open a live Markdown preview in the browser |
+| `:MarkdownPreviewStop` | Stop the preview |
+| `:MarkdownPreviewToggle` | Toggle the preview |
+
+Use these commands in a Markdown buffer. Requires Node.js, npm for installation,
+and a browser. The preview does not start automatically; scrolling is synchronized.
+By default, leaving the buffer closes its preview. The server listens only on
+localhost and prints its URL; SSH sessions may need port forwarding.
+See the [README](../README.md#markdown-browser-preview) for setup and troubleshooting.
+
 ### GitHub Copilot
 
 Copilot is active only if the local, Git-ignored `copilot-local.lua` in the
