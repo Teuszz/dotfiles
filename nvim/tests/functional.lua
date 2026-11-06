@@ -22,6 +22,8 @@ local function last_error(fragment)
 end
 
 local function completion()
+  -- This suite tests snippets; provider selection and visibility have their own tests.
+  package.loaded["copilot-provider"] = { name = "community" }
   local options, jump, expanded
   local allowed = false
   local mapping = setmetatable({

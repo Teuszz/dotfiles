@@ -1,11 +1,22 @@
--- Two separate interfaces: copilot.lua provides inline code suggestions,
--- while CopilotChat.nvim provides chat. The same setup supports personal and
--- organization-provided GitHub accounts; authenticate locally on each machine.
--- Both are community plugins; applicable policies must permit their use and
--- the transmission of code.
+-- Select one alternative in copilot-local.lua: "community" enables inline
+-- suggestions and chat; "official" enables only GitHub's official inline plugin.
+-- enabled=false removes the other alternative's commands, mappings and init
+-- hooks from lazy.nvim. Both inline plugins must never run in the same session.
+local provider = require("copilot-provider").name
+local filetypes = {
+  help = false,
+  gitcommit = false,
+  gitrebase = false,
+  ["copilot-chat"] = false,
+  -- Match copilot.lua's default exclusions in the official alternative as well.
+  yaml = false,
+  markdown = false,
+}
+
 return {
   {
     "zbirenbaum/copilot.lua",
+    enabled = provider == "community",
     main = "copilot",
     -- Load when entering insert mode or running :Copilot, not at editor startup.
     event = "InsertEnter",
@@ -38,16 +49,12 @@ return {
       },
       -- Disable inline suggestions in help, commit messages and chat.
       -- This is a convenience setting, NOT protection for confidential files.
-      filetypes = {
-        help = false,
-        gitcommit = false,
-        gitrebase = false,
-        ["copilot-chat"] = false,
-      },
+      filetypes = filetypes,
     },
   },
   {
     "CopilotC-Nvim/CopilotChat.nvim",
+    enabled = provider == "community",
     main = "CopilotChat",
     -- Reuse Plenary, which is already required by other plugins.
     -- Chat authenticates independently; copilot.lua is not a dependency here.
@@ -82,5 +89,36 @@ return {
       allow_insecure = false,
       -- tiktoken is optional; no build hook or new compiler dependency is required.
     },
+  },
+  {
+    "github/copilot.vim",
+    branch = "release",
+    enabled = provider == "official",
+    event = "InsertEnter",
+    cmd = "Copilot",
+    init = function()
+      -- Set these before the Vimscript plugin is sourced. Disable its default
+      -- mappings so Tab, snippet keys and our explicit shortcuts stay unchanged.
+      vim.g.copilot_no_tab_map = true
+      vim.g.copilot_no_maps = true
+      vim.g.copilot_filetypes = filetypes
+      vim.g.copilot_hide_during_completion = true
+    end,
+    config = function()
+      -- copilot.vim uses Vimscript functions, not a Lua setup() API.
+      -- The fallback preserves Alt+l when no suggestion is available.
+      vim.keymap.set("i", "<M-l>", 'copilot#Accept("\\<M-l>")', {
+        expr = true,
+        replace_keycodes = false,
+        silent = true,
+        desc = "Copilot: Accept inline suggestion",
+      })
+      vim.keymap.set("i", "<M-]>", function() vim.fn["copilot#Next"]() end,
+        { desc = "Copilot: Next inline suggestion" })
+      vim.keymap.set("i", "<M-[>", function() vim.fn["copilot#Previous"]() end,
+        { desc = "Copilot: Previous inline suggestion" })
+      vim.keymap.set("i", "<C-]>", function() vim.fn["copilot#Dismiss"]() end,
+        { desc = "Copilot: Dismiss inline suggestion" })
+    end,
   },
 }

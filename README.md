@@ -22,6 +22,7 @@ Neovim's native `vim.lsp.config()` API with Mason v2.
 ### Installation and updates
 
 1. Make `nvim/` your Neovim configuration directory (normally `~/.config/nvim`).
+   [Choose a Copilot provider](#choosing-a-copilot-provider) before using Copilot.
 2. Start Neovim and run `:Lazy restore` to install the plugin revisions recorded
    in [nvim/lazy-lock.json](nvim/lazy-lock.json). Existing setups also need this
    step to switch Treesitter to `main` and update Mason to v2.
@@ -115,10 +116,39 @@ accepts the selected suggestion, or the first suggestion if none is selected.
 
 ### GitHub Copilot
 
-[nvim/lua/plugins/copilot.lua](nvim/lua/plugins/copilot.lua) configures two
-community plugins: [copilot.lua](https://github.com/zbirenbaum/copilot.lua) for
-inline code suggestions and [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim)
-for chat. This is not an officially GitHub-supported Neovim chat integration.
+[nvim/lua/plugins/copilot.lua](nvim/lua/plugins/copilot.lua) offers two mutually
+exclusive alternatives:
+
+| Selection | Plugins | Features |
+| --- | --- | --- |
+| `community` | [copilot.lua](https://github.com/zbirenbaum/copilot.lua) + [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | Community inline suggestions and chat |
+| `official` | [github/copilot.vim](https://github.com/github/copilot.vim) | Official inline suggestions only; no community chat |
+
+#### Choosing a Copilot provider
+
+Create `copilot-local.lua` directly in the Neovim configuration directory
+(normally `~/.config/nvim`, or [nvim/](nvim/) when using this checkout).
+The file must return exactly one selection:
+
+```lua
+-- Community inline suggestions and chat:
+return "community"
+```
+
+For the official inline-only alternative, use `return "official"` instead.
+The local file is Git-ignored; do not put credentials in it. Each installation
+chooses independently without modifying the shared plugin specifications.
+
+**There is no default selection.** Without the file, Neovim remains usable,
+but all Copilot plugins are disabled and a warning explains how to select one.
+Invalid values or invalid Lua produce an explicit configuration error.
+After creating or changing the file, restart Neovim and run `:Lazy restore` to
+install the selected plugins. Restart again after installation if needed.
+Switching providers in a running session is not supported.
+
+Only the selected alternative is installed/loaded by lazy.nvim; its counterpart
+has no active commands or mappings. The lockfile records both alternatives and
+lazy.nvim preserves disabled plugins' existing lock entries.
 
 Personal accounts and organization-provided accounts hosted on **github.com**
 use the default authentication provider. The signed-in account determines Copilot
@@ -129,41 +159,49 @@ access, available models and usage limits; no credentials belong in this reposit
 Automatic inline suggestions are enabled and send code context while you type.
 To disable inline Copilot, use `:Copilot disable`. To request suggestions only
 manually, configure
-`suggestion.auto_trigger = false`; then `Alt+]` / `Alt+[` request suggestions
-manually. This does not disable the separate chat plugin. Filetype filters are
-not a security mechanism. Do not assume community plugins enforce all content
+`suggestion.auto_trigger = false` in the `community` provider's options; then
+`Alt+]` / `Alt+[` request suggestions manually. This option does not apply to
+`copilot.vim`. Disabling inline Copilot does not disable chat in the `community`
+alternative. Filetype filters are not a security mechanism.
+Do not assume community plugins enforce all content
 exclusion rules in the same way as an officially supported client.
 
 #### Requirements and authentication
 
 - A GitHub account with Copilot access through an individual plan or an assigned
-  organization seat. **Copilot Chat in the IDE** must be enabled in the applicable
-  account/organization settings. Complete SSO if required by the organization.
+  organization seat. For the `community` alternative's chat, **Copilot Chat in the IDE**
+  must be enabled in the applicable account/organization settings.
+  Complete SSO if required by the organization.
   Enterprise/SSO login links on github.com are not API endpoints.
-- Copilot Chat requires **curl 8.0.0+** on `PATH` (check `curl --version`).
-- Inline suggestions use the native Copilot Language Server. Node.js is not
+- **`community`:** Copilot Chat requires **curl 8.0.0+** on `PATH` (check `curl --version`).
+  Inline suggestions use the native Copilot Language Server. Node.js is not
   required on Linux x64/arm64 with glibc, macOS or Windows. On first load,
   approximately 75-110 MB is downloaded and verified with SHA-256; Unix systems
   require download, hashing and extraction tools.
+- **`official`:** The pinned official plugin requires **Node.js 22+** on `PATH`
+  (`node --version`). This alternative does not require CopilotChat or its
+  curl/tiktoken dependencies.
 
 1. Run `:Lazy restore` and restart Neovim. The new plugin versions are also
    recorded in the lockfile.
-2. Run `:Copilot auth` and enter the displayed device code in your browser.
+2. Run `:Copilot auth` for `community`, or `:Copilot setup` for `official`, and enter the
+   displayed device code in your browser.
    Select the GitHub account with the intended Copilot access. Check the browser's
    active account before authorizing, especially when using multiple accounts.
 3. Check `:Copilot status` and test an approved code file in insert mode.
-4. Open `:CopilotChat` and submit a non-confidential test question. Chat may
+4. **`community` only:** Open `:CopilotChat` and submit a non-confidential test question. Chat may
    display its **own device login**: sign in with the same account used for
    inline suggestions.
    The current chat version reads older Copilot JSON credentials, but not the
    native server's new `auth.db`; a second login is therefore normal.
-5. `:CopilotChatModels` lists the models available to the account. If the default
+5. **`community` only:** `:CopilotChatModels` lists the models available to the account. If the default
    model is unavailable under the account's plan or policies,
    select an available model there.
 
-Credentials remain outside this repository: on Linux, the native server normally
-uses `~/.config/github-copilot/auth.db` (or the location under `XDG_CONFIG_HOME`);
-chat stores its own login in `stdpath("data")/copilot_chat/tokens.json`.
+Credentials are managed by the selected Copilot server outside this repository.
+For the `community` alternative on Linux, the native server normally uses
+`~/.config/github-copilot/auth.db` (or the location under `XDG_CONFIG_HOME`);
+CopilotChat stores its own login in `stdpath("data")/copilot_chat/tokens.json`.
 Do not commit these files, authentication output, chat histories or logs, or share
 them without redaction. Signing into VS Code does not automatically sign you into
 Neovim.
@@ -175,17 +213,32 @@ configuration and lockfile. Authenticate on each machine; do not sync credential
 stores, chat histories or logs.
 
 Git's `user.name`, `user.email` and repository remotes do not select the Copilot
-account. Accounts are not switched automatically by repository. When changing
-accounts, check both plugins: `:Copilot auth signout` signs out only the inline
-plugin, while `:CopilotChatReset` clears chat history, not chat credentials.
+account. Accounts are not switched automatically by repository. Provider
+selection also does not select or sign out a GitHub account.
+Use `:Copilot auth signout` for `community`, or `:Copilot signout` for `official`.
+In the `community` alternative, chat authenticates independently:
+`:CopilotChatReset` clears chat history, not chat credentials.
 
-#### Usage
+#### Inline suggestions (both alternatives)
 
 | Key / command | Action |
 | --- | --- |
 | `Alt+l` | Accept an inline suggestion |
 | `Alt+]` / `Alt+[` | Next / previous inline suggestion |
 | `Ctrl+]` | Dismiss an inline suggestion |
+
+Inline suggestions appear as ghost text. They are hidden while the nvim-cmp menu
+is open; Tab, Enter and the existing snippet mappings `Ctrl+l/h` remain unchanged.
+Plugins load on demand.
+
+#### Chat (`community` only)
+
+The `official` alternative does not register any of these shortcuts or
+commands. CopilotChat is a community integration, not an officially supported
+Neovim chat client.
+
+| Key / command | Action |
+| --- | --- |
 | `Space+ac` | Open/close the chat split (normal or visual mode) |
 | `Space+ap` | Select a chat prompt |
 | `Space+am` | Select a chat model |
@@ -193,10 +246,6 @@ plugin, while `:CopilotChatReset` clears chat history, not chat credentials.
 | `Ctrl+y` in chat | Apply the suggested diff; review it first |
 | `:CopilotChatStop` | Stop the current chat response |
 | `:CopilotChatReset` | Reset chat history |
-
-Inline suggestions appear as ghost text. They are hidden while the nvim-cmp menu
-is open; Tab, Enter and the existing snippet mappings `Ctrl+l/h` remain unchanged.
-Both plugins load on demand.
 
 Chat responses default to German. Set `language` in the Copilot plugin options
 to change the response language; this does not affect authentication.
@@ -217,10 +266,11 @@ usage limits and account settings. For organization-provided access, also check
 the assigned seat, SSO and policies with an administrator.
 For proxy/TLS errors, configure the required proxy and trusted CA certificates;
 do not disable certificate verification (`allow_insecure` remains `false`).
-Chat supports the `proxy` option; inline suggestions use the Copilot Language
+CopilotChat supports the `proxy` option; inline suggestions use the Copilot Language
 Server's proxy settings. No proxy is configured by default. Keep machine-specific
 network settings and credentials out of the shared configuration.
-`:checkhealth CopilotChat` and `:Copilot status` help with diagnostics.
+`:Copilot status` helps with either alternative.
+For `community`, also use `:checkhealth CopilotChat`.
 
 ### Debugging
 
@@ -267,8 +317,9 @@ nvim --headless -u NONE -i NONE -l nvim/tests/functional.lua
 nvim --headless -u NONE -i NONE -l nvim/tests/usability.lua
 ```
 
-The usability tests also check Copilot lazy-loading, chat context defaults and
-the nvim-cmp/Copilot visibility handoff without authentication or network requests.
+The usability tests also check missing/invalid/local Copilot selections, mutually
+exclusive providers, chat context defaults, official mappings and the
+nvim-cmp/Copilot visibility handoff without authentication or network requests.
 The tests use temporary Cargo workspaces without external crate dependencies and
 real terminal jobs. Plugin interfaces are stubbed, so neither installed plugins
 nor GDB are required. Temporary files and shell processes are cleaned up afterward.

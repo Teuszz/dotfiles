@@ -1,0 +1,2 @@
+# Each installation selects its own Copilot provider; never share credentials here.
+/copilot-local.lua

@@ -5,6 +5,7 @@ vim.g.mapleader = " "
 local temporary = vim.fn.tempname() .. "-dotfiles-usability"
 vim.fn.mkdir(temporary .. "/directory with spaces", "p")
 local original_notify, original_select = vim.notify, vim.ui.select
+local original_stdpath = vim.fn.stdpath
 local notifications = {}
 vim.notify = function(message, level) notifications[#notifications + 1] = { message, level } end
 
@@ -114,9 +115,45 @@ local function loading()
 end
 
 local function copilot()
-  -- Test our integration without a personal/company login or network access.
+  -- Use a temporary installation-local file, never the user's real selection.
+  local previous_provider = package.loaded["copilot-provider"]
+  vim.fn.stdpath = function(kind)
+    return kind == "config" and temporary or original_stdpath(kind)
+  end
+  local selection_path = temporary .. "/copilot-local.lua"
+  local function select_provider(source)
+    if source then
+      vim.fn.writefile({ source }, selection_path)
+    else
+      vim.fn.delete(selection_path)
+    end
+    package.loaded["copilot-provider"] = nil
+    return require("copilot-provider")
+  end
+  local count = #notifications
+  assert(select_provider(nil).name == nil)
+  vim.wait(20)
+  assert(#notifications == count + 1 and notifications[#notifications][2] == vim.log.levels.WARN)
+  assert(notifications[#notifications][1]:find(selection_path, 1, true))
+  for _, spec in ipairs(dofile(config .. "/lua/plugins/copilot.lua")) do
+    assert(spec.enabled == false, "Missing selection must not enable any Copilot plugin")
+  end
+  for _, source in ipairs({
+    "return 'unknown'", "return 'lua'", "return 'vim'",
+    "return nil", "return {}", "return true", "not valid Lua",
+  }) do
+    local ok, err = pcall(select_provider, source)
+    assert(not ok and tostring(err):find(selection_path, 1, true))
+  end
+  assert(select_provider('return "community"').name == "community")
+  -- A running session keeps its choice; editing the local file requires a restart.
+  vim.fn.writefile({ 'return "official"' }, selection_path)
+  assert(require("copilot-provider").name == "community")
+
+  -- Test both alternatives without authentication or network access.
   local specs = dofile(config .. "/lua/plugins/copilot.lua")
-  local inline, chat = specs[1], specs[2]
+  local inline, chat, official = specs[1], specs[2], specs[3]
+  assert(inline.enabled and chat.enabled and official.enabled == false)
   assert(inline[1] == "zbirenbaum/copilot.lua" and inline.main == "copilot")
   assert(inline.event == "InsertEnter" and inline.cmd == "Copilot")
   assert(inline.opts.server.type == "binary" and inline.opts.auth_provider_url == nil)
@@ -138,8 +175,14 @@ local function copilot()
   -- proxy or model that would prevent personal access on another computer.
   assert(chat.opts.proxy == nil and chat.opts.model == nil)
   assert(inline.opts.copilot_model == nil and inline.opts.server_opts_overrides == nil)
+  assert(official[1] == "github/copilot.vim" and official.branch == "release")
+  assert(official.event == "InsertEnter" and official.cmd == "Copilot")
+  assert(select_provider('return "official"').name == "official")
+  local selected = dofile(config .. "/lua/plugins/copilot.lua")
+  assert(selected[1].enabled == false and selected[2].enabled == false and selected[3].enabled)
+  select_provider('return "community"')
   local lock = vim.json.decode(table.concat(vim.fn.readfile(config .. "/lazy-lock.json"), "\n"))
-  assert(lock["copilot.lua"] and lock["CopilotChat.nvim"])
+  assert(lock["copilot.lua"] and lock["CopilotChat.nvim"] and lock["copilot.vim"])
 
   -- Stub cmp's interface to test existing mappings/sources and both real event
   -- callbacks without installing plugins.
@@ -183,11 +226,79 @@ local function copilot()
   assert(vim.b[second].copilot_suggestion_hidden == nil)
   events.menu_closed()
   assert(vim.b[first].copilot_suggestion_hidden == false)
+
+  -- The official provider must not replace Tab or snippet mappings.
+  local global_names = {
+    "copilot_no_tab_map", "copilot_no_maps", "copilot_filetypes",
+    "copilot_hide_during_completion", "loaded_copilot",
+  }
+  local globals = {}
+  for _, name in ipairs(global_names) do globals[name] = vim.g[name] end
+  local tab_before = vim.fn.maparg("<Tab>", "i", false, true)
+  official.init()
+  official.config()
+  assert(vim.g.copilot_no_tab_map and vim.g.copilot_no_maps and vim.g.copilot_hide_during_completion)
+  assert(vim.g.copilot_filetypes.yaml == false and vim.g.copilot_filetypes.markdown == false)
+  assert(vim.deep_equal(tab_before, vim.fn.maparg("<Tab>", "i", false, true)))
+  local accept = vim.fn.maparg("<M-l>", "i", false, true)
+  assert(accept.expr == 1 and accept.rhs == 'copilot#Accept("\\<M-l>")')
+  local methods = { ["<M-]>"] = "Next", ["<M-[>"] = "Previous", ["<C-]>"] = "Dismiss" }
+  for lhs, method in pairs(methods) do
+    local name = "copilot#" .. method
+    local original = vim.fn[name]
+    local called = false
+    vim.fn[name] = function() called = true end
+    local key = vim.fn.maparg(lhs, "i", false, true)
+    assert(key.desc)
+    key.callback()
+    assert(called)
+    vim.fn[name] = original
+    vim.keymap.del("i", lhs)
+  end
+  vim.keymap.del("i", "<M-l>")
+
+  select_provider('return "official"')
+  dofile(config .. "/lua/plugins/completions.lua")[2].config()
+  local clear = vim.fn["copilot#Clear"]
+  local cleared = 0
+  vim.fn["copilot#Clear"] = function() cleared = cleared + 1 end
+  vim.g.loaded_copilot = 1
+  for _, value in ipairs({ false, true }) do
+    vim.b[first].copilot_disabled = value
+    events.menu_opened()
+    events.menu_opened()
+    assert(vim.b[first].copilot_disabled == true)
+    assert(vim.b[second].copilot_disabled == nil)
+    events.menu_closed()
+    assert(vim.b[first].copilot_disabled == value, "Keep the user's buffer override")
+    assert(vim.b[first].copilot_cmp_saved_disabled == nil)
+  end
+  assert(cleared == 4)
+  vim.b[first].copilot_disabled = nil
+  vim.g.loaded_copilot = nil
+  events.menu_opened()
+  assert(cleared == 4, "Opening cmp must not load an inactive Copilot plugin")
+  events.menu_closed()
+  assert(vim.b[first].copilot_disabled == nil)
+  events.menu_closed()
+  assert(vim.b[first].copilot_disabled == nil)
+  vim.fn["copilot#Clear"] = clear
+  for _, name in ipairs(global_names) do vim.g[name] = globals[name] end
+
+  select_provider(nil)
+  vim.wait(20)
+  dofile(config .. "/lua/plugins/completions.lua")[2].config()
+  vim.b[first].copilot_suggestion_hidden = nil
+  events.menu_opened()
+  events.menu_closed()
+  assert(vim.b[first].copilot_disabled == nil and vim.b[first].copilot_suggestion_hidden == nil)
   vim.api.nvim_buf_delete(first, { force = true })
   vim.api.nvim_buf_delete(second, { force = true })
   package.loaded.cmp, package.loaded.luasnip = previous_cmp, previous_snippets
   package.loaded["luasnip.loaders.from_vscode"] = previous_loader
-  print("PASS: Copilot lazy specs, auth/context defaults, lockfile and buffer-local cmp visibility")
+  package.loaded["copilot-provider"] = previous_provider
+  vim.fn.stdpath = original_stdpath
+  print("PASS: mandatory Copilot choice, provider exclusivity, mappings, lockfile and cmp visibility")
 end
 
 local ok, err = xpcall(function()
@@ -197,6 +308,7 @@ local ok, err = xpcall(function()
   copilot()
 end, debug.traceback)
 vim.notify, vim.ui.select = original_notify, original_select
+vim.fn.stdpath = original_stdpath
 vim.fn.delete(temporary, "rf")
 assert(ok, err)
 print("PASS: all usability regressions")
