@@ -7,6 +7,10 @@ The configuration in [nvim/](nvim/) requires Neovim 0.12 or newer and is
 maintained for Neovim 0.12.6. It uses the current Treesitter `main` API and
 Neovim's native `vim.lsp.config()` API with Mason v2.
 
+For everyday use, see the Neovim cheatsheet in [English](nvim/CHEATSHEET.en.md)
+or [German](nvim/CHEATSHEET.de.md), covering editor basics and this configuration's
+plugin shortcuts.
+
 ### Requirements
 
 - Git for lazy.nvim and plugin installation.
