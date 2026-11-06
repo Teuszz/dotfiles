@@ -25,6 +25,11 @@ local function completion()
   -- This suite tests snippets; provider selection and visibility have their own tests.
   package.loaded["copilot-provider"] = { name = "community" }
   local options, jump, expanded
+  local events = {}
+  local confirm_pair = function() end
+  package.loaded["nvim-autopairs.completion.cmp"] = {
+    on_confirm_done = function() return confirm_pair end,
+  }
   local allowed = false
   local mapping = setmetatable({
     preset = { insert = function(value) return value end },
@@ -39,7 +44,7 @@ local function completion()
   })
   package.loaded.cmp = {
     -- Visibility callbacks are tested separately in usability.lua.
-    event = { on = function() end },
+    event = { on = function(_, name, callback) events[name] = callback end },
     mapping = mapping,
     config = {
       window = { bordered = function() return {} end },
@@ -55,7 +60,9 @@ local function completion()
   package.loaded["luasnip.loaders.from_vscode"] = { lazy_load = function() end }
   local plugin = dofile(config .. "/lua/plugins/completions.lua")[2]
   assert(vim.list_contains(plugin.dependencies, "hrsh7th/cmp-buffer"))
+  assert(vim.list_contains(plugin.dependencies, "windwp/nvim-autopairs"))
   plugin.config()
+  assert(events.confirm_done == confirm_pair)
   assert(options.sources[2][1].name == "buffer")
   assert(options.mapping["<CR>"].select == true)
   options.snippet.expand({ body = "${1:example}" })
@@ -70,7 +77,7 @@ local function completion()
     assert(vim.deep_equal(options.mapping[key].modes, { "i", "s" }))
     allowed = false
   end
-  print("PASS: completion dependency, source, expansion, snippet navigation and fallback")
+  print("PASS: completion dependencies, autopairs integration, source, expansion, snippet navigation and fallback")
 end
 
 local function terminal()
@@ -309,6 +316,7 @@ end
 local ok, err = xpcall(function()
   vim.fn.mkdir(temporary, "p")
   completion()
+  if arg[1] == "--completion" then return end
   terminal()
   debugging()
 end, debug.traceback)
@@ -318,4 +326,4 @@ end
 vim.notify = original_notify
 vim.fn.delete(temporary, "rf")
 assert(ok, err)
-print("PASS: all functional regressions")
+print(arg[1] == "--completion" and "PASS: focused completion regressions" or "PASS: all functional regressions")

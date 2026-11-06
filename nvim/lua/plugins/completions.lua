@@ -17,6 +17,7 @@ return {
       "rafamadriz/friendly-snippets",
       -- Implements the "buffer" source configured below (words from the current buffer).
       "hrsh7th/cmp-buffer",
+      "windwp/nvim-autopairs",
     },
     config = function()
       local cmp = require'cmp'
@@ -100,6 +101,7 @@ return {
             { name = 'buffer' },
           })
       })
+      cmp.event:on("confirm_done", require("nvim-autopairs.completion.cmp").on_confirm_done())
     end
   }
 }

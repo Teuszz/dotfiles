@@ -90,6 +90,11 @@ end
 local function loading()
   local completion = dofile(config .. "/lua/plugins/completions.lua")
   assert(completion[2].event == "InsertEnter")
+  assert(vim.list_contains(completion[2].dependencies, "windwp/nvim-autopairs"))
+  local autopairs = dofile(config .. "/lua/plugins/autopairs.lua")
+  assert(autopairs.event == "InsertEnter" and autopairs.opts.map_cr == false)
+  assert(vim.list_contains(autopairs.opts.disable_filetype, "TelescopePrompt"))
+  assert(vim.list_contains(autopairs.opts.disable_filetype, "copilot-chat"))
   local preview = dofile(config .. "/lua/plugins/markdown-preview.lua")
   assert(vim.deep_equal(preview.ft, { "markdown" }))
   assert(vim.deep_equal(preview.cmd, { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" }))
@@ -131,6 +136,7 @@ local function loading()
   local lock = vim.json.decode(table.concat(vim.fn.readfile(config .. "/lazy-lock.json"), "\n"))
   assert(lock["cmp-buffer"] and lock["telescope-ui-select.nvim"] and lock["lazy.nvim"])
   assert(lock["markdown-preview.nvim"] and lock["markdown-preview.nvim"].branch == "master")
+  assert(lock["nvim-autopairs"] and lock["nvim-autopairs"].branch == "master")
   for _, revision in pairs(lock) do assert(#revision.commit == 40 and revision.commit:match("^%x+$")) end
   print("PASS: lazy triggers, startup Treesitter, Catppuccin status-line theme and lockfile entries")
 end
@@ -301,6 +307,10 @@ local function copilot()
   -- callbacks without installing plugins.
   local previous_cmp, previous_snippets = package.loaded.cmp, package.loaded.luasnip
   local previous_loader = package.loaded["luasnip.loaders.from_vscode"]
+  local previous_autopairs = package.loaded["nvim-autopairs.completion.cmp"]
+  package.loaded["nvim-autopairs.completion.cmp"] = {
+    on_confirm_done = function() return function() end end,
+  }
   local events, options, snippet_loaded = {}, nil, false
   local mapping = setmetatable({
     preset = { insert = function(value) return value end },
@@ -324,6 +334,7 @@ local function copilot()
   }
   dofile(config .. "/lua/plugins/completions.lua")[2].config()
   assert(snippet_loaded and options.mapping["<CR>"].select == true)
+  assert(type(events.confirm_done) == "function")
   assert(options.sources[1][1].name == "nvim_lsp" and options.sources[1][2].name == "luasnip")
   assert(options.sources[2][1].name == "buffer")
   for _, lhs in ipairs({ "<C-l>", "<C-h>" }) do
@@ -409,6 +420,7 @@ local function copilot()
   vim.api.nvim_buf_delete(second, { force = true })
   package.loaded.cmp, package.loaded.luasnip = previous_cmp, previous_snippets
   package.loaded["luasnip.loaders.from_vscode"] = previous_loader
+  package.loaded["nvim-autopairs.completion.cmp"] = previous_autopairs
   package.loaded["copilot-provider"] = previous_provider
   vim.fn.stdpath = original_stdpath
   print("PASS: mandatory Copilot choice, provider exclusivity, mappings, lockfile and cmp visibility")

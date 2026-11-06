@@ -130,6 +130,15 @@ Use `Ctrl+l` / `Ctrl+h` to move to the next / previous snippet placeholder.
 Outside an active snippet these keys keep their normal behavior. Enter still
 accepts the selected suggestion, or the first suggestion if none is selected.
 
+`nvim-autopairs` loads on entering Insert mode and inserts matching brackets
+and quotes. Typing an existing closing character skips over it; Backspace
+between an empty pair removes both characters. Its nvim-cmp integration adds
+parentheses when confirming eligible function/method completions, without
+duplicating parentheses already supplied by snippets. Enter's completion/newline
+behavior and `Ctrl+l/h` snippet navigation remain unchanged. Pairing is disabled
+in Telescope prompts, Copilot chat and the plugin's other default excluded prompts.
+Run `:Lazy restore` and restart Neovim to install the locked plugin on other machines.
+
 ### Markdown browser preview
 
 [markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim) loads
