@@ -105,7 +105,16 @@ rust-analyzer delegates Rust formatting to `rustfmt` (install via
 | `Space+n` | Open/focus Neo-tree and reveal the current file |
 | `Space+1` ... `Space+9` | Jump to a buffer by position |
 | `Space+$` | Jump to the last buffer |
+| `Space+bd` | Close the file buffer while preserving the window layout |
 | `Alt+t` | Show/hide the persistent terminal |
+
+`Space+bd` and bufferline's close button/right-click replace the closed file
+with the next file buffer, or the previous one, without closing editor splits.
+Closing the last file leaves an empty editor buffer beside Neo-tree. Modified
+buffers must be saved first; these actions never discard unsaved changes.
+The built-in `:bd` command remains unchanged and can close editor windows.
+Run `nvim --headless -u NONE -i NONE -l nvim/tests/usability.lua --buffer-closing`
+from the repository root to test this behavior without installing plugins.
 
 The editor and status line both use Catppuccin. Lualine explicitly depends on
 Catppuccin and uses its `catppuccin-nvim` status-line theme, which follows the

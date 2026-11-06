@@ -122,6 +122,98 @@ local function loading()
   print("PASS: lazy triggers, startup Treesitter, Catppuccin status-line theme and lockfile entries")
 end
 
+local function buffer_closing()
+  local previous = package.loaded.bufferline
+  local options, elements = nil, {}
+  package.loaded.bufferline = {
+    setup = function(value) options = value.options end,
+    get_elements = function() return { elements = elements } end,
+  }
+  dofile(config .. "/lua/plugins/bufferline.lua").config()
+  local close = vim.fn.maparg("<leader>bd", "n", false, true).callback
+  assert(type(close) == "function" and options.close_command == options.right_mouse_command)
+  local initial_window = vim.api.nvim_get_current_win()
+  local initial_buffer = vim.api.nvim_get_current_buf()
+  local first = vim.api.nvim_create_buf(true, false)
+  local second = vim.api.nvim_create_buf(true, false)
+  local third = vim.api.nvim_create_buf(true, false)
+  local sidebar = vim.api.nvim_create_buf(false, true)
+  vim.bo[sidebar].filetype = "neo-tree"
+  vim.cmd("leftabove 20vsplit")
+  local tree_window = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(tree_window, sidebar)
+  vim.api.nvim_set_current_win(initial_window)
+  vim.api.nvim_win_set_buf(initial_window, second)
+  vim.cmd("split")
+  local other_window = vim.api.nvim_get_current_win()
+  vim.cmd("tabnew")
+  local tab_window = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(tab_window, second)
+  vim.api.nvim_set_current_win(other_window)
+  elements = { { id = first }, { id = second }, { id = third } }
+  local width = vim.api.nvim_win_get_width(tree_window)
+  local count = #vim.api.nvim_list_wins()
+  close()
+  assert(not vim.api.nvim_buf_is_valid(second))
+  for _, win in ipairs({ initial_window, other_window, tab_window }) do
+    assert(vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == third)
+  end
+  assert(#vim.api.nvim_list_wins() == count and vim.api.nvim_win_get_width(tree_window) == width)
+  assert(vim.api.nvim_win_get_buf(tree_window) == sidebar)
+  vim.api.nvim_win_close(tab_window, true)
+  count = #vim.api.nvim_list_wins()
+
+  elements = { { id = first }, { id = third } }
+  vim.api.nvim_buf_set_lines(third, 0, -1, false, { "unsaved" })
+  close()
+  assert(vim.api.nvim_buf_is_valid(third) and vim.api.nvim_get_current_buf() == third)
+  assert(notifications[#notifications][1]:find("unsaved", 1, true))
+  vim.bo[third].modified = false
+  options.close_command(third)
+  assert(vim.api.nvim_get_current_buf() == first, "Use the previous buffer at the end of the list")
+
+  -- Close a hidden buffer without changing the active window or creating a buffer.
+  local hidden = vim.api.nvim_create_buf(true, false)
+  options.right_mouse_command(hidden)
+  assert(not vim.api.nvim_buf_is_valid(hidden) and vim.api.nvim_get_current_buf() == first)
+  vim.api.nvim_set_current_win(tree_window)
+  close()
+  assert(vim.api.nvim_buf_is_valid(sidebar) and notifications[#notifications][1]:find("file buffer", 1, true))
+  vim.api.nvim_set_current_win(other_window)
+
+  -- Exclude buffers belonging to earlier tests when exercising the last-file case.
+  local listed = {}
+  for _, id in ipairs(vim.api.nvim_list_bufs()) do
+    if id ~= first and vim.bo[id].buflisted then
+      listed[#listed + 1] = id
+      vim.bo[id].buflisted = false
+    end
+  end
+  elements = { { id = first } }
+  close()
+  local empty = vim.api.nvim_get_current_buf()
+  assert(empty ~= first and vim.bo[empty].buflisted and vim.bo[empty].buftype == "")
+  assert(vim.api.nvim_buf_get_name(empty) == "" and not vim.bo[empty].modified)
+  assert(vim.api.nvim_win_get_buf(initial_window) == empty and #vim.api.nvim_list_wins() == count)
+  assert(vim.api.nvim_win_get_width(tree_window) == width)
+
+  -- A newly opened file can be missing from the tabline's cached elements.
+  local fresh = vim.api.nvim_create_buf(true, false)
+  close()
+  assert(vim.api.nvim_get_current_buf() == fresh and not vim.api.nvim_buf_is_valid(empty))
+  vim.api.nvim_win_close(other_window, true)
+  vim.api.nvim_win_close(tree_window, true)
+  vim.api.nvim_set_current_win(initial_window)
+  vim.api.nvim_win_set_buf(initial_window, initial_buffer)
+  for _, id in ipairs(listed) do
+    if vim.api.nvim_buf_is_valid(id) then vim.bo[id].buflisted = true end
+  end
+  vim.api.nvim_buf_delete(fresh, { force = true })
+  vim.api.nvim_buf_delete(sidebar, { force = true })
+  package.loaded.bufferline = previous
+  print("PASS: layout-preserving buffer close, neighbors, unsaved protection, sidebar and last-file fallback")
+end
+
 local function copilot()
   -- Use a temporary installation-local file, never the user's real selection.
   local previous_provider = package.loaded["copilot-provider"]
@@ -310,13 +402,18 @@ local function copilot()
 end
 
 local ok, err = xpcall(function()
+  if arg[1] == "--buffer-closing" then
+    buffer_closing()
+    return
+  end
   startup()
   lsp()
   loading()
+  buffer_closing()
   copilot()
 end, debug.traceback)
 vim.notify, vim.ui.select = original_notify, original_select
 vim.fn.stdpath = original_stdpath
 vim.fn.delete(temporary, "rf")
 assert(ok, err)
-print("PASS: all usability regressions")
+print(arg[1] == "--buffer-closing" and "PASS: focused buffer-closing regressions" or "PASS: all usability regressions")

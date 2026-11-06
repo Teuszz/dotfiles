@@ -122,11 +122,18 @@ A Neovim **tab page** contains a window layout, not just a file.
 | `Space n` | Open/focus Neo-tree on the left and reveal the current file; **not a toggle** |
 | `Space 1` ... `Space 9` | Open a buffer by its position in the bufferline |
 | `Space $` | Open the last buffer in the bufferline |
+| `Space bd` | Close the current file buffer without changing the window layout |
 | `:Neotree close` | Close the explorer |
 | `:Telescope buffers` | Select an open buffer using Telescope |
 
 Bufferline numbers are **positions**, not the internal IDs shown by `:ls`.
 The bar shows buffers, not tab pages.
+
+`Space bd` displays the next file buffer, or the previous one, in the same
+window. Closing the last file leaves an empty editor buffer.
+Unsaved changes prevent closing: use `:w` first.
+The bufferline close button and right-click use the same behavior.
+The standard `:bd` remains unchanged and can close editor windows.
 
 **Telescope defaults:** Type your search, select with `Ctrl+n` / `Ctrl+p`,
 and open with `Enter`. `Ctrl+x` / `Ctrl+v` / `Ctrl+t` open in a horizontal
