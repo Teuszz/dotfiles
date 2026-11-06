@@ -9,8 +9,8 @@ local filetypes = {
   gitrebase = false,
   ["copilot-chat"] = false,
   -- Match copilot.lua's default exclusions in the official alternative as well.
-  yaml = false,
-  markdown = false,
+  yaml = true,
+  markdown = true,
 }
 
 return {
