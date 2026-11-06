@@ -21,6 +21,15 @@ return {
     config = function()
       local cmp = require'cmp'
       local luasnip = require("luasnip")
+      -- Hide Copilot ghost text while the cmp menu is visible.
+      -- This buffer variable works even before Copilot is lazy-loaded;
+      -- setting it does not load the plugin or initiate a network request.
+      cmp.event:on("menu_opened", function()
+        vim.b.copilot_suggestion_hidden = true
+      end)
+      cmp.event:on("menu_closed", function()
+        vim.b.copilot_suggestion_hidden = false
+      end)
       -- Load VS Code-format snippets, including the friendly-snippets collection.
       require("luasnip.loaders.from_vscode").lazy_load()
 

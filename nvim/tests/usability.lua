@@ -113,10 +113,88 @@ local function loading()
   print("PASS: lazy triggers, startup Treesitter and complete commit-shaped lockfile entries")
 end
 
+local function copilot()
+  -- Test our integration without a personal/company login or network access.
+  local specs = dofile(config .. "/lua/plugins/copilot.lua")
+  local inline, chat = specs[1], specs[2]
+  assert(inline[1] == "zbirenbaum/copilot.lua" and inline.main == "copilot")
+  assert(inline.event == "InsertEnter" and inline.cmd == "Copilot")
+  assert(inline.opts.server.type == "binary" and inline.opts.auth_provider_url == nil)
+  assert(inline.opts.panel.enabled == false and inline.opts.suggestion.auto_trigger == true)
+  assert(inline.opts.suggestion.hide_during_completion == true)
+  local maps = inline.opts.suggestion.keymap
+  assert(maps.accept == "<M-l>" and maps.next == "<M-]>" and maps.prev == "<M-[>")
+  assert(maps.dismiss == "<C-]>" and maps.accept_word == false and maps.accept_line == false)
+  assert(inline.opts.filetypes["copilot-chat"] == false)
+  assert(chat[1] == "CopilotC-Nvim/CopilotChat.nvim" and chat.main == "CopilotChat")
+  assert(chat.dependencies[1] == "nvim-lua/plenary.nvim")
+  assert(vim.tbl_contains(chat.cmd, "CopilotChat") and vim.tbl_contains(chat.cmd, "CopilotChatModels"))
+  assert(chat.keys[1][1] == "<leader>ac" and vim.tbl_contains(chat.keys[1].mode, "x"))
+  for _, mapping in ipairs(chat.keys) do assert(mapping.desc) end
+  assert(chat.opts.selection == "visual" and vim.deep_equal(chat.opts.resources, { "selection" }))
+  assert(vim.tbl_isempty(chat.opts.tools) and vim.tbl_isempty(chat.opts.instruction_files))
+  assert(chat.opts.allow_insecure == false and chat.opts.window.layout == "vertical")
+  -- The local login selects the account; shared options must not pin a company
+  -- proxy or model that would prevent personal access on another computer.
+  assert(chat.opts.proxy == nil and chat.opts.model == nil)
+  assert(inline.opts.copilot_model == nil and inline.opts.server_opts_overrides == nil)
+  local lock = vim.json.decode(table.concat(vim.fn.readfile(config .. "/lazy-lock.json"), "\n"))
+  assert(lock["copilot.lua"] and lock["CopilotChat.nvim"])
+
+  -- Stub cmp's interface to test existing mappings/sources and both real event
+  -- callbacks without installing plugins.
+  local previous_cmp, previous_snippets = package.loaded.cmp, package.loaded.luasnip
+  local previous_loader = package.loaded["luasnip.loaders.from_vscode"]
+  local events, options, snippet_loaded = {}, nil, false
+  local mapping = setmetatable({
+    preset = { insert = function(value) return value end },
+    scroll_docs = function() return function() end end,
+    complete = function() return function() end end,
+    abort = function() return function() end end,
+    confirm = function(value) return value end,
+  }, { __call = function(_, callback) return callback end })
+  package.loaded.cmp = {
+    event = { on = function(_, name, callback) events[name] = callback end },
+    mapping = mapping,
+    config = {
+      window = { bordered = function() return {} end },
+      sources = function(primary, fallback) return { primary, fallback } end,
+    },
+    setup = function(value) options = value end,
+  }
+  package.loaded.luasnip = { locally_jumpable = function() return false end }
+  package.loaded["luasnip.loaders.from_vscode"] = {
+    lazy_load = function() snippet_loaded = true end,
+  }
+  dofile(config .. "/lua/plugins/completions.lua")[2].config()
+  assert(snippet_loaded and options.mapping["<CR>"].select == true)
+  assert(options.sources[1][1].name == "nvim_lsp" and options.sources[1][2].name == "luasnip")
+  assert(options.sources[2][1].name == "buffer")
+  for _, lhs in ipairs({ "<C-l>", "<C-h>" }) do
+    local fallback_called = false
+    options.mapping[lhs](function() fallback_called = true end)
+    assert(fallback_called)
+  end
+  local first = vim.api.nvim_create_buf(true, false)
+  local second = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_set_current_buf(first)
+  events.menu_opened()
+  assert(vim.b[first].copilot_suggestion_hidden == true)
+  assert(vim.b[second].copilot_suggestion_hidden == nil)
+  events.menu_closed()
+  assert(vim.b[first].copilot_suggestion_hidden == false)
+  vim.api.nvim_buf_delete(first, { force = true })
+  vim.api.nvim_buf_delete(second, { force = true })
+  package.loaded.cmp, package.loaded.luasnip = previous_cmp, previous_snippets
+  package.loaded["luasnip.loaders.from_vscode"] = previous_loader
+  print("PASS: Copilot lazy specs, auth/context defaults, lockfile and buffer-local cmp visibility")
+end
+
 local ok, err = xpcall(function()
   startup()
   lsp()
   loading()
+  copilot()
 end, debug.traceback)
 vim.notify, vim.ui.select = original_notify, original_select
 vim.fn.delete(temporary, "rf")

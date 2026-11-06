@@ -36,6 +36,8 @@ local function completion()
     end,
   })
   package.loaded.cmp = {
+    -- Visibility callbacks are tested separately in usability.lua.
+    event = { on = function() end },
     mapping = mapping,
     config = {
       window = { bordered = function() return {} end },
